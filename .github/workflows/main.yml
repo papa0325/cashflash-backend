@@ -1,0 +1,149 @@
+name: Node-CI
+
+on: 
+  push:
+    branches: [ master, develop ]
+
+jobs:
+  build:
+
+    runs-on: ubuntu-latest
+    if: "contains(github.event.head_commit.message, '[update]')"
+
+    steps:
+      - name: Copy code files to container
+        uses: actions/checkout@v2
+
+      - name: Install Node.js
+        uses: actions/setup-node@v1
+        with:
+          node-version: '12.x'
+
+      - name: Install npm dependencies
+        run: npm install
+
+      - name: Run build task
+        run: npm run build
+
+  deploy-master:
+    runs-on: ubuntu-latest 
+    needs: build
+    if: github.ref == 'refs/heads/master' && contains(github.event.head_commit.message, '[update]')
+
+
+    steps:
+      - name: Copy code files to container
+        uses: actions/checkout@v2
+
+      - name: Environment preparation
+        run: |
+          mkdir -p ~/.ssh/
+          touch ~/.ssh/id_rsa
+          chmod -R go= ~/.ssh
+          chmod 600 ~/.ssh/id_rsa
+          echo "${{ secrets.SERVER_SSH_KEY }}" >> ~/.ssh/id_rsa          
+          sudo apt-add-repository -y -u ppa:ansible/ansible          
+          sudo apt-get install -y rsync
+          sudo apt-get install -y ansible
+      
+      - name: Deploy to Server
+        run: |            
+          chmod 700 ci-scripts
+          cd ci-scripts
+          ansible-playbook -i "${{ secrets.REMOTE_HOST }}" -e "ansible_user=${{ secrets.REMOTE_USER }} \
+            TARGET_NAME=${{ secrets.TARGET_NAME }} \
+            SERVER_PORT=${{ secrets.SERVER_PORT }} \
+            APP_URL=${{ secrets.APP_URL }} \
+            SERVER_URL=${{ secrets.SERVER_URL }} \
+            backend_bin=${{secrets.BACKEND_BIN}} \
+            DB_LINK=${{ secrets.DB_LINK }} \
+            SCHEDULER_LINK=${{ secrets.SCHEDULER_LINK }} \
+            DB_NAME=${{ secrets.DB_NAME }} \
+            DB_USER=${{ secrets.DB_USER }} \
+            DB_PASSWORD=${{ secrets.DB_PASSWORD }} \
+            JWT_ACCESS_SECRET=${{ secrets.JWT_ACCESS_SECRET }} \
+            JWT_REFRESH_SECRET=${{ secrets.JWT_REFRESH_SECRET }} \
+            EMAIL_PASSWORD=${{ secrets.EMAIL_PASSWORD }} \
+            GATEWAY_URL=${{ secrets.GATEWAY_URL }} \
+            GATEWAY_USERNAME=${{ secrets.GATEWAY_USERNAME }} \
+            GATEWAY_PASSWORD=${{ secrets.GATEWAY_PASSWORD }} \
+            GATEWAY_SERVER_ID=${{ secrets.GATEWAY_SERVER_ID }} \
+            GATEWAY_SERVER_PASSWORD=${{ secrets.GATEWAY_SERVER_PASSWORD }} \
+            GATEWAY_IPN=${{ secrets.GATEWAY_IPN }} \
+            GATEWAY_2FA_KEY=${{ secrets.GATEWAY_2FA_KEY }} \
+            GATEWAY_TXS_ADDRESS=${{ secrets.GATEWAY_TXS_ADDRESS }} \
+            COIN_MARKET_API_KEY=${{ secrets.COIN_MARKET_API_KEY }} \
+            COIN_CHANGE_PUBLIC_KEY=${{ secrets.COIN_CHANGE_PUBLIC_KEY }} \
+            COIN_CHANGE_PRIVATE_KEY=${{ secrets.COIN_CHANGE_PRIVATE_KEY }} \
+            COIN_PAYMENTS_TOKEN=${{ secrets.COIN_PAYMENTS_TOKEN }} \
+            DELETE_URL=${{ secrets.DELETE_URL }} \
+            DELETE_LOGIN=${{ secrets.DELETE_LOGIN }} \
+            DELETE_PASS=${{ secrets.DELETE_PASS }} \
+            KYC_WEBHOOK_AUTH_TOKEN=${{ secrets.KYC_WEBHOOK_AUTH_TOKEN }} \
+            KYC_BASE_URL=${{ secrets.KYC_BASE_URL }} \
+            PROFILE_VERIFICATION_PAYLOAD_SIGN_SECRET=${{ secrets.PROFILE_VERIFICATION_PAYLOAD_SIGN_SECRET }} \
+            TRULIOO_API_KEY=${{ secrets.TRULIOO_API_KEY }} \
+            TRULIOO_BASE_URL=${{ secrets.TRULIOO_BASE_URL }} \
+            SRC_DIR=${{ github.workspace }}/" backend-update.yml;
+
+  deploy-develop:
+    runs-on: ubuntu-latest 
+    needs: build
+    if: github.ref == 'refs/heads/develop' && contains(github.event.head_commit.message, '[update]')
+
+    steps:
+      - name: Copy code files to container
+        uses: actions/checkout@v2
+
+      - name: Environment preparation
+        run: |        
+          mkdir -p ~/.ssh/
+          touch ~/.ssh/id_rsa
+          chmod -R go= ~/.ssh
+          chmod 600 ~/.ssh/id_rsa
+          echo "${{ secrets.SERVER_SSH_KEY }}" >> ~/.ssh/id_rsa          
+          sudo apt-add-repository -y -u ppa:ansible/ansible          
+          sudo apt-get install -y rsync
+          sudo apt-get install -y ansible
+      
+      - name: Deploy to Server
+        run: |
+          chmod 700 ci-scripts
+          cd ci-scripts
+          ansible-playbook -i "${{ secrets.REMOTE_HOST }}" -e "ansible_user=${{ secrets.REMOTE_USER }} \
+            TARGET_NAME=${{ secrets.TARGET_NAME_TEST }} \
+            SERVER_PORT=${{ secrets.SERVER_PORT_TEST }} \
+            APP_URL=${{ secrets.APP_URL_TEST }} \
+            SERVER_URL=${{ secrets.SERVER_URL_TEST }} \  
+            backend_bin=${{secrets.BACKEND_BIN_TEST}} \
+            DB_LINK=${{ secrets.DB_LINK_TEST }} \
+            SCHEDULER_LINK=${{ secrets.SCHEDULER_LINK_TEST }} \
+            DB_NAME=${{ secrets.DB_NAME_TEST }} \
+            DB_USER=${{ secrets.DB_USER_TEST }} \
+            DB_PASSWORD=${{ secrets.DB_PASSWORD_TEST }} \
+            JWT_ACCESS_SECRET=${{ secrets.JWT_ACCESS_SECRET_TEST }} \
+            JWT_REFRESH_SECRET=${{ secrets.JWT_REFRESH_SECRET_TEST }} \
+            EMAIL_PASSWORD=${{ secrets.EMAIL_PASSWORD_TEST }} \
+            GATEWAY_URL=${{ secrets.GATEWAY_URL_TEST }} \
+            GATEWAY_USERNAME=${{ secrets.GATEWAY_USERNAME_TEST }} \
+            GATEWAY_PASSWORD=${{ secrets.GATEWAY_PASSWORD_TEST }} \
+            GATEWAY_SERVER_ID=${{ secrets.GATEWAY_SERVER_ID_TEST }} \
+            GATEWAY_SERVER_PASSWORD=${{ secrets.GATEWAY_SERVER_PASSWORD_TEST }} \
+            GATEWAY_IPN=${{ secrets.GATEWAY_IPN_TEST }} \
+            GATEWAY_2FA_KEY=${{ secrets.GATEWAY_2FA_KEY_TEST }} \
+            GATEWAY_TXS_ADDRESS=${{ secrets.GATEWAY_TXS_ADDRESS_TEST }} \
+            COIN_MARKET_API_KEY=${{ secrets.COIN_MARKET_API_KEY_TEST }} \
+            COIN_CHANGE_PUBLIC_KEY=${{ secrets.COIN_CHANGE_PUBLIC_KEY_TEST }} \
+            COIN_CHANGE_PRIVATE_KEY=${{ secrets.COIN_CHANGE_PRIVATE_KEY_TEST }} \
+            COIN_PAYMENTS_TOKEN=${{ secrets.COIN_PAYMENTS_TOKEN_TEST }} \
+            DELETE_URL=${{ secrets.DELETE_URL }} \
+            DELETE_LOGIN=${{ secrets.DELETE_LOGIN }} \
+            DELETE_PASS=${{ secrets.DELETE_PASS }} \
+            KYC_WEBHOOK_AUTH_TOKEN=${{ secrets.KYC_WEBHOOK_AUTH_TOKEN_TEST }} \
+            KYC_BASE_URL=${{ secrets.KYC_BASE_URL_TEST }} \
+            PROFILE_VERIFICATION_PAYLOAD_SIGN_SECRET=${{ secrets.PROFILE_VERIFICATION_PAYLOAD_SIGN_SECRET_TEST }} \
+            TRULIOO_API_KEY=${{ secrets.TRULIOO_API_KEY_TEST }} \
+            TRULIOO_BASE_URL=${{ secrets.TRULIOO_BASE_URL_TEST }} \
+            SRC_DIR=${{ github.workspace }}/" backend-update.yml;
+
+

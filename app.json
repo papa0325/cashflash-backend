@@ -1,0 +1,14 @@
+{
+  "apps": [
+      {
+          "name": "cashflash-backend",
+          "exec_mode": "fork",
+          "instances": "1",
+          "script": "./build/main.js",          
+          "autorestart": true,
+          "env": {
+              "ENV": "prod"              
+          }
+      }
+  ]
+}
